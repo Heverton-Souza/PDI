@@ -1,0 +1,126 @@
+import ij.IJ;
+import ij.ImagePlus;
+import ij.WindowManager;
+import ij.gui.GenericDialog;
+import ij.plugin.PlugIn;
+import ij.process.ByteProcessor;
+import ij.process.ImageProcessor;
+
+public class Converter_Escala_Cinza_ implements PlugIn {
+
+    @Override
+    public void run(String arg) {
+        // Obtém a imagem que está selecionada/ativa no momento
+        ImagePlus imgOriginal = WindowManager.getCurrentImage();
+
+        // Verificações de segurança
+        if (imgOriginal == null) {
+            IJ.error("Erro", "Você precisa ter uma imagem aberta.");
+            return;
+        }
+
+        if (imgOriginal.getType() != ImagePlus.COLOR_RGB) {
+            IJ.error("Erro de Formato", "A imagem selecionada precisa ser RGB para ser convertida para escala de cinza.");
+            return;
+        }
+
+        // Chama a interface gráfica
+        apresentarInterfaceGrafica(imgOriginal);
+    }
+
+    private void apresentarInterfaceGrafica(ImagePlus img) {
+        GenericDialog gd = new GenericDialog("Conversão para Escala de Cinza");
+
+        // Vetor com os nomes das três estratégias
+        String[] estrategias = {
+            "Média Aritmética", 
+            "Luminance (TV Analógica)", 
+            "Luminance (Sistemas Digitais)"
+        };
+
+        gd.addMessage("Selecione o método de conversão:");
+        // Cria o grupo de botões de rádio (3 linhas, 1 coluna, opção do meio marcada por padrão)
+        gd.addRadioButtonGroup("Estratégias:", estrategias, 3, 1, estrategias[1]);
+        
+        // Checkbox para manter a imagem original intacta ou sobrescrevê-la
+        gd.addCheckbox("Criar uma nova imagem (manter a original)", true);
+
+        gd.showDialog();
+
+        if (gd.wasCanceled()) {
+            return; // Encerra silenciosamente se o usuário cancelar
+        }
+
+        // Obtém as respostas do usuário
+        String estrategiaEscolhida = gd.getNextRadioButton();
+        boolean criarNovaImagem = gd.getNextBoolean();
+
+        // Passa as escolhas para o processamento matemático
+        processarImagem(img, estrategiaEscolhida, criarNovaImagem);
+    }
+
+    private void processarImagem(ImagePlus img, String estrategia, boolean criarNovaImagem) {
+        int largura = img.getWidth();
+        int altura = img.getHeight();
+
+        ImageProcessor procOriginal = img.getProcessor();
+        
+        // Cria um processador de 8-bits limpo com as mesmas dimensões
+        ByteProcessor procCinza = new ByteProcessor(largura, altura);
+
+        // Variáveis para os pesos de cada canal
+        double pR = 0;
+        double pG = 0;
+        double pB = 0;
+
+        // Define os pesos UMA ÚNICA VEZ antes de processar os pixels
+        if (estrategia.equals("Média Aritmética")) {
+            pR = 1.0 / 3.0;
+            pG = 1.0 / 3.0;
+            pB = 1.0 / 3.0;
+        } else if (estrategia.equals("Luminance (TV Analógica)")) {
+            pR = 0.299;
+            pG = 0.587;
+            pB = 0.114;
+        } else if (estrategia.equals("Luminance (Sistemas Digitais)")) {
+            pR = 0.2125;
+            pG = 0.7154;
+            pB = 0.072;
+        }
+
+        int[] rgb = new int[3];
+
+        // Laço duplo para varrer todos os pixels da imagem usando a mesma equação
+        for (int x = 0; x < largura; x++) {
+            for (int y = 0; y < altura; y++) {
+                
+                // Extrai os valores de Red, Green e Blue do pixel atual
+                rgb = procOriginal.getPixel(x, y, rgb);
+                int r = rgb[0];
+                int g = rgb[1];
+                int b = rgb[2];
+
+                // Conta única baseada nos pesos definidos lá em cima
+                int valorCinza = (int) Math.round((r * pR) + (g * pG) + (b * pB));
+
+                // Garantia de segurança: trunca o valor para ficar entre 0 e 255
+                if (valorCinza > 255) valorCinza = 255;
+                if (valorCinza < 0) valorCinza = 0;
+
+                // Salva o novo valor calculado no processador de 8-bits
+                procCinza.putPixel(x, y, valorCinza);
+            }
+        }
+
+        // Define o que fazer com base na escolha do Checkbox
+        if (criarNovaImagem) {
+            // Cria uma janela nova para exibir o resultado
+            ImagePlus novaImg = new ImagePlus(img.getTitle() + " (" + estrategia + ")", procCinza);
+            novaImg.show();
+        } else {
+            // Substitui os dados e o tipo da imagem atual para 8-bit
+            img.setProcessor(procCinza);
+            img.updateAndDraw(); 
+        }
+    }
+}
