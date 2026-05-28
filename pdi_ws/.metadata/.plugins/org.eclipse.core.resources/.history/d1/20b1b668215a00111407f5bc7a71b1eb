@@ -1,0 +1,57 @@
+import ij.IJ;
+import ij.ImagePlus;
+import ij.plugin.PlugIn;
+import ij.process.ByteProcessor;
+import ij.process.ImageProcessor;
+
+public class Separar_Canais_RGB_ implements PlugIn {
+    
+    public void run(String arg) {
+        
+    }
+    
+    public void separar_canais(ImagePlus image) {
+    	// Pega a imagem que está aberta no momento
+        ImagePlus imagemOriginal = IJ.getImage();
+        
+        // Verifica se é uma imagem RGB
+        if (imagemOriginal.getType() != ImagePlus.COLOR_RGB) {
+            IJ.error("Por favor, abra uma imagem colorida (RGB) primeiro.");
+            return;
+        }
+        
+        int largura = imagemOriginal.getWidth();
+        int altura = imagemOriginal.getHeight();
+        
+        // Pega o processador da imagem
+        ImageProcessor procOriginal = imagemOriginal.getProcessor();
+        
+        // Cria três processadores de 8-bits (um para cada canal)
+        ByteProcessor procRed = new ByteProcessor(largura, altura);
+        ByteProcessor procGreen = new ByteProcessor(largura, altura);
+        ByteProcessor procBlue = new ByteProcessor(largura, altura);
+        
+        int x, y;
+        int[] valorPixel = new int[3]; // Vai guardar [Vermelho, Verde, Azul]
+        
+        // Varre a imagem pixel por pixel
+        for (x = 0; x < largura; x++) {
+            for (y = 0; y < altura; y++) {
+                // Pega a cor do pixel da imagem original
+                valorPixel = procOriginal.getPixel(x, y, valorPixel);
+                
+                // Coloca cada cor no seu respectivo canal
+                procRed.putPixel(x, y, valorPixel[0]);
+                procGreen.putPixel(x, y, valorPixel[1]);
+                procBlue.putPixel(x, y, valorPixel[2]);
+            }
+        }
+        
+        // Cria as imagens na tela do ImageJ e as exibe
+        new ImagePlus("Canal_Vermelho", procRed).show();
+        new ImagePlus("Canal_Verde", procGreen).show();
+        new ImagePlus("Canal_Azul", procBlue).show();
+        
+        ImagemOriginal.updateAndDraw();
+    }
+}

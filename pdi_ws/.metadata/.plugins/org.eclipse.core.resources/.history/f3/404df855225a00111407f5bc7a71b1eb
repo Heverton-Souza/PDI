@@ -1,0 +1,82 @@
+import ij.IJ;
+import ij.ImagePlus;
+import ij.WindowManager;
+import ij.gui.GenericDialog;
+import ij.plugin.PlugIn;
+import ij.process.ColorProcessor;
+import ij.process.ImageProcessor;
+
+public class Juntar_Canais_RGB_ implements PlugIn {
+    
+    public void run(String arg) {
+        // Pega a lista de IDs de todas as janelas de imagens abertas
+        int[] imagensAbertas = WindowManager.getIDList();
+        
+        if (imagensAbertas == null || imagensAbertas.length < 3) {
+            IJ.error("Você precisa de pelo menos 3 imagens abertas para formar uma RGB.");
+            return;
+        }
+        
+        // --- PARTE NOVA: CRIANDO O MENU ---
+        
+        // Cria uma lista de textos para guardar os nomes das imagens
+        String[] nomesImagens = new String[imagensAbertas.length];
+        for (int i = 0; i < imagensAbertas.length; i++) {
+            nomesImagens[i] = WindowManager.getImage(imagensAbertas[i]).getTitle();
+        }
+        
+        // Monta a janelinha de diálogo
+        GenericDialog gd = new GenericDialog("Montar Imagem RGB");
+        gd.addChoice("Canal Vermelho (Red):", nomesImagens, nomesImagens[0]);
+        gd.addChoice("Canal Verde (Green):", nomesImagens, nomesImagens[1]);
+        gd.addChoice("Canal Azul (Blue):", nomesImagens, nomesImagens[2]);
+        
+        // Mostra a janela e pausa o código esperando o usuário clicar OK ou Cancelar
+        gd.showDialog();
+        
+        // Se o usuário clicar em Cancelar, encerra o plugin
+        if (gd.wasCanceled()) {
+            return;
+        }
+        
+        // Pega a posição (índice) que o usuário selecionou em cada menu
+        int indexRed = gd.getNextChoiceIndex();
+        int indexGreen = gd.getNextChoiceIndex();
+        int indexBlue = gd.getNextChoiceIndex();
+        
+        // Pega as imagens corretas usando a escolha do usuário
+        ImagePlus imgRed = WindowManager.getImage(imagensAbertas[indexRed]);
+        ImagePlus imgGreen = WindowManager.getImage(imagensAbertas[indexGreen]);
+        ImagePlus imgBlue = WindowManager.getImage(imagensAbertas[indexBlue]);
+        
+        // Daqui para baixo a lógica é a mesma de antes
+        if (imgRed.getType() != ImagePlus.GRAY8 || imgGreen.getType() != ImagePlus.GRAY8 || imgBlue.getType() != ImagePlus.GRAY8) {
+            IJ.error("As 3 imagens selecionadas precisam ser em escala de cinza (8-bits).");
+            return;
+        }
+        
+        int largura = imgRed.getWidth();
+        int altura = imgRed.getHeight();
+        
+        ImageProcessor procRed = imgRed.getProcessor();
+        ImageProcessor procGreen = imgGreen.getProcessor();
+        ImageProcessor procBlue = imgBlue.getProcessor();
+        
+        ColorProcessor procRGB = new ColorProcessor(largura, altura);
+        
+        int x, y;
+        int[] valorPixel = new int[3];
+        
+        for (x = 0; x < largura; x++) {
+            for (y = 0; y < altura; y++) {
+                valorPixel[0] = procRed.getPixel(x, y);
+                valorPixel[1] = procGreen.getPixel(x, y);
+                valorPixel[2] = procBlue.getPixel(x, y);
+                
+                procRGB.putPixel(x, y, valorPixel);
+            }
+        }
+        
+        new ImagePlus("Imagem_RGB_Montada", procRGB).show();
+    }
+}

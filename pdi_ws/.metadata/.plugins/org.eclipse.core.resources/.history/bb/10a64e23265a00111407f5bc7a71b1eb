@@ -1,0 +1,126 @@
+import ij.IJ;
+import ij.ImagePlus;
+import ij.WindowManager;
+import ij.gui.GenericDialog;
+import ij.plugin.PlugIn;
+import ij.process.ColorProcessor;
+import ij.process.ImageProcessor;
+
+public class Juntar_Canais_RGB_ implements PlugIn {
+    
+    @Override
+    public void run(String arg) {
+        // Verifica se há imagens suficientes abertas
+        int[] imagensAbertas = WindowManager.getIDList();
+        if (imagensAbertas == null || imagensAbertas.length < 3) {
+            IJ.error("Erro", "Você precisa de pelo menos 3 imagens abertas para formar uma RGB.");
+            return;
+        }
+        
+        // Obtém a seleção do usuário via caixa de diálogo
+        ImagePlus[] imagensSelecionadas = escolherImagens(imagensAbertas);
+        if (imagensSelecionadas == null) {
+            return; // Usuário clicou em "Cancelar"
+        }
+        
+        ImagePlus imgRed = imagensSelecionadas[0];
+        ImagePlus imgGreen = imagensSelecionadas[1];
+        ImagePlus imgBlue = imagensSelecionadas[2];
+        
+        // Validações de segurança (Tipo 8-bit e Dimensões)
+        if (!saoValidas(imgRed, imgGreen, imgBlue)) {
+            return; // Se não forem válidas, a função saoValidas já mostra o erro e paramos por aqui
+        }
+        
+        // Processamento
+        ImagePlus imgRGB = mesclarCanais(imgRed, imgGreen, imgBlue);
+        
+        // Exibe o resultado
+        imgRGB.show();
+    }
+    
+    /**
+     * Cria e exibe a janela de diálogo para o usuário escolher os canais.
+     * Retorna um array com as 3 imagens (R, G, B) ou null se o usuário cancelar.
+     */
+    private ImagePlus[] escolherImagens(int[] idsImagens) {
+        String[] nomesImagens = new String[idsImagens.length];
+        for (int i = 0; i < idsImagens.length; i++) {
+            nomesImagens[i] = WindowManager.getImage(idsImagens[i]).getTitle();
+        }
+        
+        GenericDialog gd = new GenericDialog("Montar Imagem RGB");
+        gd.addChoice("Canal Vermelho (Red):", nomesImagens, nomesImagens[0]);
+        gd.addChoice("Canal Verde (Green):", nomesImagens, nomesImagens[1]);
+        gd.addChoice("Canal Azul (Blue):", nomesImagens, nomesImagens[2]);
+        
+        gd.showDialog();
+        
+        if (gd.wasCanceled()) {
+            return null;
+        }
+        
+        int indexRed = gd.getNextChoiceIndex();
+        int indexGreen = gd.getNextChoiceIndex();
+        int indexBlue = gd.getNextChoiceIndex();
+        
+        ImagePlus[] selecionadas = new ImagePlus[3];
+        selecionadas[0] = WindowManager.getImage(idsImagens[indexRed]);
+        selecionadas[1] = WindowManager.getImage(idsImagens[indexGreen]);
+        selecionadas[2] = WindowManager.getImage(idsImagens[indexBlue]);
+        
+        return selecionadas;
+    }
+    
+    /**
+     * Verifica se as imagens são 8-bit e se possuem exatamente a mesma largura e altura.
+     */
+    private boolean saoValidas(ImagePlus r, ImagePlus g, ImagePlus b) {
+        // Validação 1: Escala de cinza 8-bit
+        if (r.getType() != ImagePlus.GRAY8 || g.getType() != ImagePlus.GRAY8 || b.getType() != ImagePlus.GRAY8) {
+            
+            IJ.error("Erro de Formato", "As 3 imagens selecionadas precisam ser em escala de cinza (8-bits).");
+            return false;
+        }
+        
+        // Validação 2: Dimensões (largura e altura)
+        int largura = r.getWidth();
+        int altura = r.getHeight();
+        
+        if (g.getWidth() != largura || g.getHeight() != altura || b.getWidth() != largura || b.getHeight() != altura) {
+                         
+            IJ.error("Erro de Dimensão", "As 3 imagens precisam ter exatamente a mesma dimensão");
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Mescla os três canais em uma única imagem RGB varrendo pixel por pixel.
+     */
+    private ImagePlus mesclarCanais(ImagePlus imgR, ImagePlus imgG, ImagePlus imgB) {
+        int largura = imgR.getWidth();
+        int altura = imgR.getHeight();
+        
+        ImageProcessor procRed = imgR.getProcessor();
+        ImageProcessor procGreen = imgG.getProcessor();
+        ImageProcessor procBlue = imgB.getProcessor();
+        
+        ColorProcessor procRGB = new ColorProcessor(largura, altura);
+        
+        int[] valorPixel = new int[3];
+        
+        for (int x = 0; x < largura; x++) {
+            for (int y = 0; y < altura; y++) {
+                valorPixel[0] = procRed.getPixel(x, y);
+                valorPixel[1] = procGreen.getPixel(x, y);
+                valorPixel[2] = procBlue.getPixel(x, y);
+                
+                procRGB.putPixel(x, y, valorPixel);
+            }
+        }
+        
+        return new ImagePlus("Imagem_RGB_Montada", procRGB);
+    }
+}
