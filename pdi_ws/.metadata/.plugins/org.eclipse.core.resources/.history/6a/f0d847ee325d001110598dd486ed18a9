@@ -1,5 +1,6 @@
 import ij.IJ;
 import ij.ImagePlus;
+import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.plugin.PlugIn;
 import ij.process.ByteProcessor;
@@ -90,37 +91,25 @@ public class Converter_Escala_Cinza_ implements PlugIn {
         // Array que guardará a referência para a estratégia selecionada
         double[] pesos = null;
         
-        //--------- Aplica estratégia ---------
+        //--------- Aplicar estratégia de vetores comentado no começo da classe ---------
+        
+        // Define os pesos antes de processar os pixels
         if (estrategia.equals("Média Aritmética")) {
-            pesos = PESOS_MEDIA;
+            pR = 1.0 / 3.0;
+            pG = 1.0 / 3.0;
+            pB = 1.0 / 3.0;
         } else if (estrategia.equals("Luminance (TV Analógica)")) {
-            pesos = PESOS_TV_ANALOGICA;
+            pR = 0.299;
+            pG = 0.587;
+            pB = 0.114;
         } else if (estrategia.equals("Luminance (Sistemas Digitais)")) {
-            pesos = PESOS_SISTEMAS_DIGITAIS;
+            pR = 0.2125;
+            pG = 0.7154;
+            pB = 0.072;
         }
 
-        // Chama função para fazer o calculo da escala de cinza
-        calcularPixelsCinza(procOriginal, procCinza, pesos, largura, altura);
-       
-        // -------- Gerenciamento da exibição da imagem --------
+        // ------- Passar os pesos e o processador cinza como parâmetros para outro método que faz o calculo do valorCinza -------
         
-        // Define o que fazer com base na escolha do Checkbox
-        if (criarNovaImagem) {
-            // Cria uma janela nova para exibir o resultado
-            ImagePlus novaImg = new ImagePlus(img.getTitle() + " (" + estrategia + ")", procCinza);
-            novaImg.show();
-        } else {
-            // Substitui os dados e o tipo da imagem atual para 8-bit
-            img.setProcessor(procCinza);
-            img.updateAndDraw(); 
-        }
-    }
-    
-    /**
-     * Método responsável unicamente por varrer a imagem e aplicar
-     * a matemática de conversão de cores com base nos pesos fornecidos.
-     */
-    private void calcularPixelsCinza(ImageProcessor procOriginal, ByteProcessor procCinza, double[] pesos, int largura, int altura) {
         int[] rgb = new int[3];
 
         // Laço duplo para varrer todos os pixels da imagem usando a mesma equação
@@ -133,20 +122,30 @@ public class Converter_Escala_Cinza_ implements PlugIn {
                 int g = rgb[1];
                 int b = rgb[2];
 
-                // Conta única baseada no vetor de pesos passado como parâmetro (0=R, 1=G, 2=B)
-                int valorCinza = (int) Math.round((r * pesos[0]) + (g * pesos[1]) + (b * pesos[2]));
+                // Conta única baseada nos pesos definidos lá em cima
+                int valorCinza = (int) Math.round((r * pR) + (g * pG) + (b * pB));
 
                 // Garantia de segurança: trunca o valor para ficar entre 0 e 255
-                if (valorCinza > 255){ 
-                	valorCinza = 255;
-                }
-                if (valorCinza < 0){
-                	valorCinza = 0;
-                }
+                if (valorCinza > 255) valorCinza = 255;
+                if (valorCinza < 0) valorCinza = 0;
 
                 // Salva o novo valor calculado no processador de 8-bits
                 procCinza.putPixel(x, y, valorCinza);
             }
+        }
+        
+        
+        // --- Daqui pra baixo pode manter nesse mesmo método
+        
+        // Define o que fazer com base na escolha do Checkbox
+        if (criarNovaImagem) {
+            // Cria uma janela nova para exibir o resultado
+            ImagePlus novaImg = new ImagePlus(img.getTitle() + " (" + estrategia + ")", procCinza);
+            novaImg.show();
+        } else {
+            // Substitui os dados e o tipo da imagem atual para 8-bit
+            img.setProcessor(procCinza);
+            img.updateAndDraw(); 
         }
     }
 }

@@ -1,5 +1,6 @@
 import ij.IJ;
 import ij.ImagePlus;
+import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.plugin.PlugIn;
 import ij.process.ByteProcessor;
@@ -99,9 +100,33 @@ public class Converter_Escala_Cinza_ implements PlugIn {
             pesos = PESOS_SISTEMAS_DIGITAIS;
         }
 
-        // Chama função para fazer o calculo da escala de cinza
+        // ------- Passar os pesos e o processador cinza como parâmetros para outro método que faz o calculo do valorCinza -------
         calcularPixelsCinza(procOriginal, procCinza, pesos, largura, altura);
-       
+        
+
+        // Laço duplo para varrer todos os pixels da imagem usando a mesma equação
+        for (int x = 0; x < largura; x++) {
+            for (int y = 0; y < altura; y++) {
+                
+                // Extrai os valores de Red, Green e Blue do pixel atual
+                rgb = procOriginal.getPixel(x, y, rgb);
+                int r = rgb[0];
+                int g = rgb[1];
+                int b = rgb[2];
+
+                // Conta única baseada nos pesos definidos lá em cima
+                int valorCinza = (int) Math.round((r * pR) + (g * pG) + (b * pB));
+
+                // Garantia de segurança: trunca o valor para ficar entre 0 e 255
+                if (valorCinza > 255) valorCinza = 255;
+                if (valorCinza < 0) valorCinza = 0;
+
+                // Salva o novo valor calculado no processador de 8-bits
+                procCinza.putPixel(x, y, valorCinza);
+            }
+        }
+        
+        
         // -------- Gerenciamento da exibição da imagem --------
         
         // Define o que fazer com base na escolha do Checkbox
