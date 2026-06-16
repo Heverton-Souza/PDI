@@ -20,9 +20,9 @@ public class Tecnicas_Histograma_ implements PlugIn {
             return;
         }
 
-        // As operações de histograma descritas são aplicadas a níveis de cinza
+        // As operações de histograma são para escala de cinza
         if (imgAtual.getType() != ImagePlus.GRAY8) {
-            IJ.error("Erro", "A imagem selecionada precisa ser de 8-bits (Tons de Cinza).");
+            IJ.error("Erro", "A imagem selecionada precisa ser de 8-bits.");
             return;
         }
 
@@ -38,15 +38,13 @@ public class Tecnicas_Histograma_ implements PlugIn {
         // Adiciona os botões de rádio para a escolha da técnica
         gd.addRadioButtonGroup("Selecione a Estratégia:", METODOS, 2, 1, METODOS[0]);
         
-        // Exibe a janela e trava a execução até o usuário clicar em OK ou Cancel
         gd.showDialog();
 
-        // Se o usuário clicar em Cancel, a operação é abortada sem alterar nada
+        // Se o usuário clicar em cancelar, encerra o plugin sem alterar nada
         if (gd.wasCanceled()) {
             return;
         } 
         
-        // Se o usuário clicou em OK, lê a opção escolhida e processa a imagem
         String metodoSelecionado = gd.getNextRadioButton();
         processarImagem(metodoSelecionado);
     }
@@ -57,7 +55,7 @@ public class Tecnicas_Histograma_ implements PlugIn {
 
         if (metodo.equals(METODOS[0])) {
             // ==========================================
-            // TÉCNICA 1: EXPANSÃO DE HISTOGRAMA
+            // 			EXPANSÃO DE HISTOGRAMA
             // ==========================================
             int aLow = 255;
             int aHigh = 0;
@@ -66,8 +64,12 @@ public class Tecnicas_Histograma_ implements PlugIn {
             for (int x = 0; x < largura; x++) {
                 for (int y = 0; y < altura; y++) {
                     int val = procOriginal.getPixel(x, y);
-                    if (val < aLow) aLow = val;
-                    if (val > aHigh) aHigh = val;
+                    if (val < aLow){
+                         aLow = val;
+                    }
+                    if (val > aHigh){
+                         aHigh = val;
+                    }
                 }
             }
 
@@ -88,18 +90,18 @@ public class Tecnicas_Histograma_ implements PlugIn {
 
         } else if (metodo.equals(METODOS[1])) {
             // ==========================================
-            // TÉCNICA 2: EQUALIZAÇÃO DE HISTOGRAMA
+            // 		EQUALIZAÇÃO DE HISTOGRAMA
             // ==========================================
-            int[] histograma = procOriginal.getHistogram();
+        	int[] histograma = montarHistograma(procOriginal, largura, altura);
             int MN = largura * altura; // Número total de pixels
             
-            int[] lut = new int[256]; // Look-Up Table para os novos valores
+            int[] lut = new int[256]; // LUT para os novos valores
             double probabilidadeAcumulada = 0;
 
-            // Calcula a probabilidade acumulada e gera a paleta truncada
+            // Calcula a probabilidade acumulada
             for (int i = 0; i < 256; i++) {
                 probabilidadeAcumulada += (double) histograma[i] / MN;
-                // Multiplicar o valor máximo (255) pela probabilidade acumulada e arredondar
+                // Multiplicar o valor máximo (nesse caso 255) pela probabilidade acumulada e arredondar
                 lut[i] = (int) Math.round(255.0 * probabilidadeAcumulada);
             }
 
@@ -114,5 +116,18 @@ public class Tecnicas_Histograma_ implements PlugIn {
 
         // Atualiza a imagem na interface do ImageJ apenas no final
         imgAtual.updateAndDraw();
+    }
+    
+    private int[] montarHistograma(ImageProcessor proc, int largura, int altura) {
+        int[] hist = new int[256]; // No caso da escala de cinza, o histograma tem 256 intensidades
+        
+        for (int x = 0; x < largura; x++) {
+            for (int y = 0; y < altura; y++) {
+                int intensidade = proc.getPixel(x, y);
+                hist[intensidade]++; // incrementando o valor dentro do vetor no indice "intensidade"
+            }
+        }
+        
+        return hist;
     }
 }
