@@ -33,7 +33,7 @@ public class Morfologia_Matematica_ implements PlugIn {
     }
 
     // ==========================================
-    // 2. INTERFACE E FLUXO DE CONTROLE
+    //                 INTERFACE
     // ==========================================
     private void apresentarInterfaceGrafica() {
         GenericDialog dialog = new GenericDialog("Morfologia Binária (Cruz 3x3)");
@@ -71,7 +71,7 @@ public class Morfologia_Matematica_ implements PlugIn {
     }
 
     // ==========================================
-    // 3. OPERAÇÕES COMPOSTAS
+    //             OPERAÇÕES PRINCIPAIS
     // ==========================================
     private void aplicarAbertura(ImageProcessor original) {
         ImageProcessor imagemErodida = erosao(original);
@@ -119,7 +119,7 @@ public class Morfologia_Matematica_ implements PlugIn {
     }
 
     // ==========================================
-    // 4. OPERAÇÕES BÁSICAS (Elemento Estruturante: Cruz 3x3)
+    //             OPERAÇÕES BÁSICAS
     // ==========================================
     private ImageProcessor erosao(ImageProcessor original) {
         int largura = original.getWidth();
@@ -162,7 +162,7 @@ public class Morfologia_Matematica_ implements PlugIn {
     }
 
     // ==========================================
-    // 5. MÉTODOS AUXILIARES
+    //             MÉTODOS AUXILIARES
     // ==========================================
     private ImageProcessor diferenca(ImageProcessor imgA, ImageProcessor imgB) {
         int largura = imgA.getWidth();
