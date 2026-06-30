@@ -17,9 +17,6 @@ public class Morfologia_Matematica_ implements PlugIn {
         "Esqueletização: Aplicação iterativa de erosões e aberturas"
     };
 
-    // ==========================================
-    // 1. PONTO DE ENTRADA E VALIDAÇÃO
-    // ==========================================
     @Override
     public void run(String arg) {
         imgAberta = IJ.getImage();
@@ -39,12 +36,14 @@ public class Morfologia_Matematica_ implements PlugIn {
         GenericDialog dialog = new GenericDialog("Morfologia Binária (Cruz 3x3)");
         
         dialog.addMessage("Selecione a operação morfológica a ser aplicada.\n" +
-                          "Nota: O algoritmo assume fundo preto (0) e objeto branco (255).");
+                          "Nota: O algoritmo assume fundo branco (255) e objeto preto (0).");
         dialog.addRadioButtonGroup("Operações:", METODOS, 6, 1, METODOS[0]);
         
         dialog.showDialog();
 
-        if (dialog.wasCanceled()) return;
+        if (dialog.wasCanceled()) {
+            return;
+        }
 
         String operacaoSelecionada = dialog.getNextRadioButton();
         ImageProcessor imagemProcessador = imgAberta.getProcessor();
@@ -54,10 +53,10 @@ public class Morfologia_Matematica_ implements PlugIn {
 
     private void direcionarOperacao(String operacao, ImageProcessor original) {
         if (operacao.equals(METODOS[0])) {
-        	ImagePlus imgDilatacao = new ImagePlus("Dilatação", dilatacao(original));
-        	imgDilatacao.show();
+            ImagePlus imgDilatacao = new ImagePlus("Dilatação", dilatacao(original));
+            imgDilatacao.show();
         } else if (operacao.equals(METODOS[1])) {
-        	ImagePlus imgErosao =  new ImagePlus("Erosão", erosao(original));
+            ImagePlus imgErosao = new ImagePlus("Erosão", erosao(original));
             imgErosao.show();
         } else if (operacao.equals(METODOS[2])) {
             aplicarAbertura(original);
@@ -99,8 +98,16 @@ public class Morfologia_Matematica_ implements PlugIn {
         int altura = original.getHeight();
         
         ImageProcessor esqueletoFinal = original.createProcessor(largura, altura);
-        ImageProcessor imagemAtual = original.duplicate();
         
+        // Como o createProcessor gera uma imagem com pixels pretos, 
+        // precisamos pintar essa imagem inteira de branco para começarmos vazios.
+        for (int x = 0; x < largura; x++) {
+            for (int y = 0; y < altura; y++) {
+                esqueletoFinal.putPixel(x, y, 255);
+            }
+        }
+        
+        ImageProcessor imagemAtual = original.duplicate();
         int limiteIteracoes = 0; 
         
         while (!imagemVazia(imagemAtual) && limiteIteracoes < 1000) {
@@ -114,7 +121,7 @@ public class Morfologia_Matematica_ implements PlugIn {
             limiteIteracoes++;
         }
         
-        ImagePlus imgEsqueleto = new ImagePlus("Esqueleto Final", esqueletoFinal);
+        ImagePlus imgEsqueleto = new ImagePlus("Esqueleto Final (" + limiteIteracoes + " iterações)", esqueletoFinal);
         imgEsqueleto.show();
     }
 
@@ -128,14 +135,17 @@ public class Morfologia_Matematica_ implements PlugIn {
         
         for (int x = 0; x < largura; x++) {
             for (int y = 0; y < altura; y++) {
-                boolean todosBrancos = (obterPixel(original, x, y) == 255)   &&
-                                       (obterPixel(original, x - 1, y) == 255) &&
-                                       (obterPixel(original, x + 1, y) == 255) &&
-                                       (obterPixel(original, x, y - 1) == 255) &&
-                                       (obterPixel(original, x, y + 1) == 255);
+                boolean todosPretos = (obterPixel(original, x, y) == 0)   &&
+                                      (obterPixel(original, x - 1, y) == 0) &&
+                                      (obterPixel(original, x + 1, y) == 0) &&
+                                      (obterPixel(original, x, y - 1) == 0) &&
+                                      (obterPixel(original, x, y + 1) == 0);
                 
-                if (todosBrancos) resultado.putPixel(x, y, 255);
-                else resultado.putPixel(x, y, 0);
+                if (todosPretos) {
+                    resultado.putPixel(x, y, 0);
+                } else {
+                    resultado.putPixel(x, y, 255); 
+                }
             }
         }
         return resultado;
@@ -148,14 +158,17 @@ public class Morfologia_Matematica_ implements PlugIn {
         
         for (int x = 0; x < largura; x++) {
             for (int y = 0; y < altura; y++) {
-                boolean algumBranco = (obterPixel(original, x, y) == 255)   ||
-                                      (obterPixel(original, x - 1, y) == 255) ||
-                                      (obterPixel(original, x + 1, y) == 255) ||
-                                      (obterPixel(original, x, y - 1) == 255) ||
-                                      (obterPixel(original, x, y + 1) == 255);
+                boolean algumPreto = (obterPixel(original, x, y) == 0)   ||
+                                     (obterPixel(original, x - 1, y) == 0) ||
+                                     (obterPixel(original, x + 1, y) == 0) ||
+                                     (obterPixel(original, x, y - 1) == 0) ||
+                                     (obterPixel(original, x, y + 1) == 0);
                 
-                if (algumBranco) resultado.putPixel(x, y, 255);
-                else resultado.putPixel(x, y, 0);
+                if (algumPreto) {
+                    resultado.putPixel(x, y, 0);  
+                } else {
+                    resultado.putPixel(x, y, 255);
+                }
             }
         }
         return resultado;
@@ -171,10 +184,10 @@ public class Morfologia_Matematica_ implements PlugIn {
         
         for (int x = 0; x < largura; x++) {
             for (int y = 0; y < altura; y++) {
-                if (imgA.getPixel(x, y) == 255 && imgB.getPixel(x, y) == 0) {
-                    resultado.putPixel(x, y, 255);
-                } else {
+                if (imgA.getPixel(x, y) == 0 && imgB.getPixel(x, y) == 255) {
                     resultado.putPixel(x, y, 0);
+                } else {
+                    resultado.putPixel(x, y, 255);
                 }
             }
         }
@@ -188,10 +201,10 @@ public class Morfologia_Matematica_ implements PlugIn {
         
         for (int x = 0; x < largura; x++) {
             for (int y = 0; y < altura; y++) {
-                if (imgA.getPixel(x, y) == 255 || imgB.getPixel(x, y) == 255) {
-                    resultado.putPixel(x, y, 255);
-                } else {
+                if (imgA.getPixel(x, y) == 0 || imgB.getPixel(x, y) == 0) {
                     resultado.putPixel(x, y, 0);
+                } else {
+                    resultado.putPixel(x, y, 255);
                 }
             }
         }
@@ -201,7 +214,9 @@ public class Morfologia_Matematica_ implements PlugIn {
     private boolean imagemVazia(ImageProcessor img) {
         for (int x = 0; x < img.getWidth(); x++) {
             for (int y = 0; y < img.getHeight(); y++) {
-                if (img.getPixel(x, y) == 255) return false;
+                if (img.getPixel(x, y) == 0) {
+                    return false;
+                }
             }
         }
         return true;
@@ -209,7 +224,7 @@ public class Morfologia_Matematica_ implements PlugIn {
 
     private int obterPixel(ImageProcessor img, int x, int y) {
         if (x < 0 || x >= img.getWidth() || y < 0 || y >= img.getHeight()) {
-            return 0; 
+            return 255; 
         }
         return img.getPixel(x, y);
     }
