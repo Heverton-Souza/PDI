@@ -6,23 +6,25 @@ import ij.process.ImageProcessor;
 
 public class Morfologia_Matematica_ implements PlugIn {
 
-    private ImagePlus imgAtual;
+    private ImagePlus imgAberta;
     
-    // Array com todas as operações descritas nos slides
     private final String[] METODOS = {
         "Dilatação: Expande contornos e fecha pequenos orifícios",
         "Erosão: Remove pequenos detalhes e afina os contornos",
         "Abertura: Suaviza contornos e rompe istmos (Erosão seguida de Dilatação)",
         "Fechamento: Funde descontinuidades e elimina buracos (Dilatação seguida de Erosão)",
-        "Extração de Borda: Subtrai a imagem erodida da imagem original",
-        "Esqueletização: Transforma o objeto em um esqueleto mais simples"
+        "Extração de Borda: Diferença entre a imagem original e sua erosão",
+        "Esqueletização: Aplicação iterativa de erosões e aberturas"
     };
 
+    // ==========================================
+    // 1. PONTO DE ENTRADA E VALIDAÇÃO
+    // ==========================================
     @Override
     public void run(String arg) {
-        imgAtual = IJ.getImage();
+        imgAberta = IJ.getImage();
 
-        if (imgAtual == null || imgAtual.getType() != ImagePlus.GRAY8) {
+        if (imgAberta == null || imgAberta.getType() != ImagePlus.GRAY8) {
             IJ.error("Erro", "Abra uma imagem binária de 8-bits.");
             return;
         }
@@ -30,68 +32,66 @@ public class Morfologia_Matematica_ implements PlugIn {
         apresentarInterfaceGrafica();
     }
 
+    // ==========================================
+    // 2. INTERFACE E FLUXO DE CONTROLE
+    // ==========================================
     private void apresentarInterfaceGrafica() {
-        GenericDialog gd = new GenericDialog("Morfologia Binária (Cruz 3x3)");
+        GenericDialog dialog = new GenericDialog("Morfologia Binária (Cruz 3x3)");
         
-        gd.addMessage("Selecione a operação morfológica a ser aplicada.\n" +
-                      "Nota: O algoritmo assume fundo preto (0) e objeto branco (255).");
+        dialog.addMessage("Selecione a operação morfológica a ser aplicada.\n" +
+                          "Nota: O algoritmo assume fundo preto (0) e objeto branco (255).");
+        dialog.addRadioButtonGroup("Operações:", METODOS, 6, 1, METODOS[0]);
         
-        // Agora temos 6 opções no RadioButtonGroup
-        gd.addRadioButtonGroup("Operações:", METODOS, 6, 1, METODOS[0]);
-        
-        gd.showDialog();
+        dialog.showDialog();
 
-        if (gd.wasCanceled()) return;
+        if (dialog.wasCanceled()) return;
 
-        String metodoSelecionado = gd.getNextRadioButton();
-        ImageProcessor procOriginal = imgAtual.getProcessor();
+        String operacaoSelecionada = dialog.getNextRadioButton();
+        ImageProcessor imagemProcessador = imgAberta.getProcessor();
 
-        // Direciona para o método correspondente baseado na seleção
-        if (metodoSelecionado.equals(METODOS[0])) {
-            ImageProcessor dilacao = dilataCruz(procOriginal);
-            new ImagePlus("Dilatação", dilacao).show();
-            
-        } else if (metodoSelecionado.equals(METODOS[1])) {
-            ImageProcessor erosao = erodeCruz(procOriginal);
-            new ImagePlus("Erosão", erosao).show();
-            
-        } else if (metodoSelecionado.equals(METODOS[2])) {
-            aplicarAbertura(procOriginal);
-            
-        } else if (metodoSelecionado.equals(METODOS[3])) {
-            aplicarFechamento(procOriginal);
-            
-        } else if (metodoSelecionado.equals(METODOS[4])) {
-            aplicarExtracaoBorda(procOriginal);
-            
+        direcionarOperacao(operacaoSelecionada, imagemProcessador);
+    }
+
+    private void direcionarOperacao(String operacao, ImageProcessor original) {
+        if (operacao.equals(METODOS[0])) {
+        	ImagePlus imgDilatacao = new ImagePlus("Dilatação", dilatacao(original));
+        	imgDilatacao.show();
+        } else if (operacao.equals(METODOS[1])) {
+        	ImagePlus imgErosao =  new ImagePlus("Erosão", erosao(original));
+            imgErosao.show();
+        } else if (operacao.equals(METODOS[2])) {
+            aplicarAbertura(original);
+        } else if (operacao.equals(METODOS[3])) {
+            aplicarFechamento(original);
+        } else if (operacao.equals(METODOS[4])) {
+            aplicarExtracaoBorda(original);
         } else {
-            aplicarEsqueletizacao(procOriginal);
+            aplicarEsqueletizacao(original);
         }
     }
 
     // ==========================================
-    // MÉTODOS DE APLICAÇÃO (COMPOSTOS)
+    // 3. OPERAÇÕES COMPOSTAS
     // ==========================================
-
     private void aplicarAbertura(ImageProcessor original) {
-        // Abertura é Erosão seguida de Dilatação (Slide 15)
-        ImageProcessor erosao = erodeCruz(original);
-        ImageProcessor abertura = dilataCruz(erosao);
-        new ImagePlus("Abertura", abertura).show();
+        ImageProcessor imagemErodida = erosao(original);
+        ImageProcessor imagemAberta = dilatacao(imagemErodida);
+        ImagePlus imgAbertura = new ImagePlus("Abertura", imagemAberta);
+        imgAbertura.show();
     }
 
     private void aplicarFechamento(ImageProcessor original) {
-        // Fechamento é Dilatação seguida de Erosão (Slide 16)
-        ImageProcessor dilatacao = dilataCruz(original);
-        ImageProcessor fechamento = erodeCruz(dilatacao);
-        new ImagePlus("Fechamento", fechamento).show();
+        ImageProcessor imagemDilatada = dilatacao(original);
+        ImageProcessor imagemFechada = erosao(imagemDilatada);
+        ImagePlus imgFechamento = new ImagePlus("Fechamento", imagemFechada);
+        imgFechamento.show();
     }
 
     private void aplicarExtracaoBorda(ImageProcessor original) {
-        // Borda é Original subtraído de sua Erosão (Slide 18)
-        ImageProcessor erosao = erodeCruz(original);
-        ImageProcessor borda = subtrai(original, erosao);
-        new ImagePlus("Extração de Borda", borda).show();
+        ImageProcessor imagemErodida = erosao(original);
+        ImageProcessor borda = diferenca(original, imagemErodida);
+        ImagePlus imgBorda = new ImagePlus("Extração de Borda", borda);
+        imgBorda.show();
     }
 
     private void aplicarEsqueletizacao(ImageProcessor original) {
@@ -99,41 +99,40 @@ public class Morfologia_Matematica_ implements PlugIn {
         int altura = original.getHeight();
         
         ImageProcessor esqueletoFinal = original.createProcessor(largura, altura);
-        ImageProcessor Xk = original.duplicate();
+        ImageProcessor imagemAtual = original.duplicate();
         
         int limiteIteracoes = 0; 
         
-        while (!isVazio(Xk) && limiteIteracoes < 1000) {
-            ImageProcessor Xk_mais_1 = erodeCruz(Xk);
-            ImageProcessor aberturaXk = dilataCruz(Xk_mais_1); // Abertura simplificada
-            ImageProcessor Sk = subtrai(Xk, aberturaXk);
+        while (!imagemVazia(imagemAtual) && limiteIteracoes < 1000) {
+            ImageProcessor imagemErodida = erosao(imagemAtual);
+            ImageProcessor imagemAberta = dilatacao(imagemErodida); 
             
-            esqueletoFinal = une(esqueletoFinal, Sk);
-            Xk = Xk_mais_1;
+            ImageProcessor camadaEsqueleto = diferenca(imagemAtual, imagemAberta);
+            esqueletoFinal = uniao(esqueletoFinal, camadaEsqueleto);
             
+            imagemAtual = imagemErodida;
             limiteIteracoes++;
         }
         
-        new ImagePlus("Esqueleto Final (" + limiteIteracoes + " iteracoes)", esqueletoFinal).show();
+        ImagePlus imgEsqueleto = new ImagePlus("Esqueleto Final", esqueletoFinal);
+        imgEsqueleto.show();
     }
 
-
     // ==========================================
-    // OPERAÇÕES MORFOLÓGICAS BÁSICAS (Elemento: Cruz 3x3)
+    // 4. OPERAÇÕES BÁSICAS (Elemento Estruturante: Cruz 3x3)
     // ==========================================
-    
-    private ImageProcessor erodeCruz(ImageProcessor ip) {
-        int largura = ip.getWidth();
-        int altura = ip.getHeight();
-        ImageProcessor resultado = ip.createProcessor(largura, altura);
+    private ImageProcessor erosao(ImageProcessor original) {
+        int largura = original.getWidth();
+        int altura = original.getHeight();
+        ImageProcessor resultado = original.createProcessor(largura, altura);
         
         for (int x = 0; x < largura; x++) {
             for (int y = 0; y < altura; y++) {
-                boolean todosBrancos = (getPixel(ip, x, y) == 255)   &&
-                                       (getPixel(ip, x - 1, y) == 255) &&
-                                       (getPixel(ip, x + 1, y) == 255) &&
-                                       (getPixel(ip, x, y - 1) == 255) &&
-                                       (getPixel(ip, x, y + 1) == 255);
+                boolean todosBrancos = (obterPixel(original, x, y) == 255)   &&
+                                       (obterPixel(original, x - 1, y) == 255) &&
+                                       (obterPixel(original, x + 1, y) == 255) &&
+                                       (obterPixel(original, x, y - 1) == 255) &&
+                                       (obterPixel(original, x, y + 1) == 255);
                 
                 if (todosBrancos) resultado.putPixel(x, y, 255);
                 else resultado.putPixel(x, y, 0);
@@ -142,18 +141,18 @@ public class Morfologia_Matematica_ implements PlugIn {
         return resultado;
     }
 
-    private ImageProcessor dilataCruz(ImageProcessor ip) {
-        int largura = ip.getWidth();
-        int altura = ip.getHeight();
-        ImageProcessor resultado = ip.createProcessor(largura, altura);
+    private ImageProcessor dilatacao(ImageProcessor original) {
+        int largura = original.getWidth();
+        int altura = original.getHeight();
+        ImageProcessor resultado = original.createProcessor(largura, altura);
         
         for (int x = 0; x < largura; x++) {
             for (int y = 0; y < altura; y++) {
-                boolean algumBranco = (getPixel(ip, x, y) == 255)   ||
-                                      (getPixel(ip, x - 1, y) == 255) ||
-                                      (getPixel(ip, x + 1, y) == 255) ||
-                                      (getPixel(ip, x, y - 1) == 255) ||
-                                      (getPixel(ip, x, y + 1) == 255);
+                boolean algumBranco = (obterPixel(original, x, y) == 255)   ||
+                                      (obterPixel(original, x - 1, y) == 255) ||
+                                      (obterPixel(original, x + 1, y) == 255) ||
+                                      (obterPixel(original, x, y - 1) == 255) ||
+                                      (obterPixel(original, x, y + 1) == 255);
                 
                 if (algumBranco) resultado.putPixel(x, y, 255);
                 else resultado.putPixel(x, y, 0);
@@ -162,7 +161,10 @@ public class Morfologia_Matematica_ implements PlugIn {
         return resultado;
     }
 
-    private ImageProcessor subtrai(ImageProcessor imgA, ImageProcessor imgB) {
+    // ==========================================
+    // 5. MÉTODOS AUXILIARES
+    // ==========================================
+    private ImageProcessor diferenca(ImageProcessor imgA, ImageProcessor imgB) {
         int largura = imgA.getWidth();
         int altura = imgA.getHeight();
         ImageProcessor resultado = imgA.createProcessor(largura, altura);
@@ -179,7 +181,7 @@ public class Morfologia_Matematica_ implements PlugIn {
         return resultado;
     }
 
-    private ImageProcessor une(ImageProcessor imgA, ImageProcessor imgB) {
+    private ImageProcessor uniao(ImageProcessor imgA, ImageProcessor imgB) {
         int largura = imgA.getWidth();
         int altura = imgA.getHeight();
         ImageProcessor resultado = imgA.createProcessor(largura, altura);
@@ -196,19 +198,19 @@ public class Morfologia_Matematica_ implements PlugIn {
         return resultado;
     }
 
-    private boolean isVazio(ImageProcessor ip) {
-        for (int x = 0; x < ip.getWidth(); x++) {
-            for (int y = 0; y < ip.getHeight(); y++) {
-                if (ip.getPixel(x, y) == 255) return false;
+    private boolean imagemVazia(ImageProcessor img) {
+        for (int x = 0; x < img.getWidth(); x++) {
+            for (int y = 0; y < img.getHeight(); y++) {
+                if (img.getPixel(x, y) == 255) return false;
             }
         }
         return true;
     }
 
-    private int getPixel(ImageProcessor ip, int x, int y) {
-        if (x < 0 || x >= ip.getWidth() || y < 0 || y >= ip.getHeight()) {
+    private int obterPixel(ImageProcessor img, int x, int y) {
+        if (x < 0 || x >= img.getWidth() || y < 0 || y >= img.getHeight()) {
             return 0; 
         }
-        return ip.getPixel(x, y);
+        return img.getPixel(x, y);
     }
 }
