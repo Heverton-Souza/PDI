@@ -87,7 +87,7 @@ public class Extrator_ROIs_ implements PlugIn {
 
         salvarRecortes(imgOriginal, roisEncontradas, dirSaida, nomeBase);
 
-        // Fecha as janelas // COMENTAR PRA TESTAR
+        // Fecha as janelas 
         imgOriginal.close();
         mascara.close();
 
@@ -107,11 +107,13 @@ public class Extrator_ROIs_ implements PlugIn {
 
     private void aplicarLimiarETratamentos(ImagePlus img) {
     	
-        IJ.run(img, "Convert to Mask", "method=Default background=Light black");
+    	IJ.run(img, "8-bit", "");
+    	
+    	IJ.setAutoThreshold(img, "Default");
+    	
+        IJ.run(img, "Convert to Mask", "");
         
         IJ.run(img, "Fill Holes", "");
-        
-        IJ.run(img, "Watershed", "");
     }
 
     private void salvarRecortes(ImagePlus imgOriginal, Roi[] rois, String dirSaida, String nomeBase) {
@@ -120,8 +122,7 @@ public class Extrator_ROIs_ implements PlugIn {
             imgOriginal.setRoi(rois[i]);
             
             // Recortar exatamente esse pedaço
-            ImageProcessor procRecortado = imgOriginal.getProcessor().crop();
-            ImagePlus imgRecortada = new ImagePlus("cone_" + i, procRecortado); // nome da imagem na RAM
+            ImagePlus imgRecortada = imgOriginal.crop();
             
             // "fotoOriginal_cone_1.png"
             String caminhoFinal = dirSaida + File.separator + nomeBase + "_cone_" + (i + 1) + ".png"; // nome da imagem quando salva
